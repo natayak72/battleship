@@ -27,75 +27,67 @@
 # 4. Сделать условия победы
 """
 import random
+import itertools
 
 
 class BattleshipGame:
-
-    player_0 = None
-    player_1 = None
-
-    field_0 = None
-    field_1 = None
+    players = []
 
     field_size = None
+
+    winner = None
+    game_end = False
 
     def __init__(self):
         self.__init_players__()
 
         self.__init_fields__()
 
-
     def play(self):
 
         self.__fill_fields__()
-        
 
+        player = self.players[0]
+        waiting = self.players[1]
+
+        while not self.game_end:
+
+            self.__player_move__(player, waiting.get_field())
+
+            if self.__check_game_end__(waiting.get_field()):
+                self.winner = player
+                break
+
+            temp = player
+            player = waiting
+            waiting = temp
+
+        print(f'Игра окончена! Победил игрок {self.winner}')
 
     def __fill_fields__(self):
         # 1.2 отрисовывается поле
         # 1.3 игрок 1 расставляет свои корабли
         # 1.4 отрисовывается поле
         # 1.5 игрок 2 расставляет корабли
-        self.__fill_field__(self.player_0, self.field_0)
-        self.__fill_field__(self.player_1, self.field_1)
+        for player in self.players:
+            self.__fill_field__(player)
 
-    
-    def __fill_field__(self, player, field):
-        field.print()
+    def __fill_field__(self, player):
+
         print(f'Игрок {player.name} расставляет корабли.')
 
         if self.field_size == 8:
             ships_available = [3, 2, 2, 1, 1, 1]
 
-
-            for ship in ships_available:
-                while True:
-                    ship_coords = input("Введите координаты корабля на 3 клетки (х, у): ")
-                    try:
-                        coord_x = int(ship_coords.spit()[0])
-                        coord_y = int(ship_coords.spit()[1])
-
-                        if coord_x > self.field_size or coord_y > self.field_size:
-                            print(f'Введите координаты в пределах поля: максимум {self.field_size}')
-
-                        # TODO проверка классом field на то, что данный корабль можно сюда поставить
-                    except ValueError:
-                        print("Введите координаты в виде двух чисел через пробел.")
-                        continue
-                    else:
-                        print(f'You entered: {integer}')
-                        break
-
-
-
-
+            for ship_size in ships_available:
+                player.get_field().place_ship(ship_size)
 
     def __init_players__(self):
-        self.player_0 = Player('Паша')
-        self.player_1 = Player('Лена')
+        self.players.append(Player('Паша'))
+        self.players.append(Player('Лена'))
 
-        return 
-        
+        return
+
         player_0 = None
         player_1 = None
 
@@ -111,21 +103,20 @@ class BattleshipGame:
 
         return player_0, player_1
 
-
     def __init_fields__(self):
 
         self.field_size = 8
-        self.field_0 = Field(self.field_size)
-        self.field_1 = Field(self.field_size)
-        return 
+        for player in self.players:
+            player.set_field(Field(self.field_size, player))
+        return
 
         print('Создание поля. Выберите размер:\n',
-        '\t1: 8х8, 1х 3-кл; 2 шт. 2-кл; 3 шт. 1кл.\n',
-        '\t2: 10х10, 1х 4-кл; 2 шт. 3-кл; 3 шт. 2кл., 4 шт. 1-кл.\n')
+              '\t1: 8х8, 1х 3-кл; 2 шт. 2-кл; 3 шт. 1кл.\n',
+              '\t2: 10х10, 1х 4-кл; 2 шт. 3-кл; 3 шт. 2кл., 4 шт. 1-кл.\n')
         field_size_input = ''
 
         while not self.field_size:
-            
+
             field_size_input = input()
 
             if field_size_input == '1':
@@ -134,11 +125,29 @@ class BattleshipGame:
                 self.field_size = 10
             else:
                 print('Выберите один из двух вариантов!\n',
-                '\t1: 8х8, 1х 3-кл; 2 шт. 2-кл; 3 шт. 1кл.\n',
-                '\t2: 10х10, 1х 4-кл; 2 шт. 3-кл; 3 шт. 2кл., 4 шт. 1-кл.\n')
+                      '\t1: 8х8, 1х 3-кл; 2 шт. 2-кл; 3 шт. 1кл.\n',
+                      '\t2: 10х10, 1х 4-кл; 2 шт. 3-кл; 3 шт. 2кл., 4 шт. 1-кл.\n')
+
+    def __player_move__(self, player_id, enemy_field):
+        print(f'Ход игрока {self.players[player_id].name}')
+
+        # todo ввод и регистрация выстрелов игрока player
+
+        self.__check_game_end__(enemy_field)
+
+    def __check_game_end__(self, field):
+        """
+
+        :param player: кого проверяем (!но поле надо смотреть другого игрока!)
+        :return:
+        """
+        # todo Условия окончания игры: 1. все корабли какого-то игрока побиты
+        return True
 
 
 class Player:
+    field = None
+
     def __init__(self, name, ai=False):
         if ai:
             self.ai = True
@@ -147,6 +156,11 @@ class Player:
             self.player_name = name
             self.ai = False
 
+    def set_field(self, field):
+        self.field = field
+
+    def get_field(self):
+        return self.field
 
     @property
     def name(self):
@@ -158,56 +172,249 @@ class Player:
 
 
 class Field:
-
     field_size = 8
     lines = None
+    ships = []
+    player = None
 
+    class BadShipPositionError(Exception):
+        def __init__(self, *args):
+            if args:
+                self.message = args[0]
+            else:
+                self.message = None
 
-    def __init__(self, field_size):
+        def __str__(self):
+            if self.message:
+                return self.message
+            else:
+                return 'BadShipPositionError has been raised'
+
+    def __init__(self, field_size, player):
         self.field_size = field_size
+        self.player = player
 
         self.__create_field__()
 
-        print('Поле создано')
-
-        self.print()
-
-
     def __create_field__(self):
-            self.lines = []
-            header = f'{"*": ^5}'
-            for i in range(self.field_size):
-                header += f'{i: ^5}'
+        self.lines = []
+        header = f'{"O": ^5}'
+        for i in range(self.field_size):
+            header += f'{i: ^5}'
+        header += f'--{"X": ^3}'
 
-            self.lines.append(header + '\n')
-            
-            
-            for x, line in enumerate(range(self.field_size)): 
-                res_line = f'{x: ^5}'
+        self.lines.append(header + '\n')
 
-                for cell in range(self.field_size):
-                    # print(f'Строка {line}: ячейка {cell}')
-                    res_line += f'{"-": ^5}'
-                # print(f'Сформирована стркоа {res_line}')
-                res_line += '\n'
+        for x, line in enumerate(range(self.field_size)):
+            res_line = f'{x: ^5}'
 
-                self.lines.append(res_line)
+            for cell in range(self.field_size):
+                # print(f'Строка {line}: ячейка {cell}')
+                res_line += f'{"-": ^5}'
+            # print(f'Сформирована стркоа {res_line}')
+            res_line += '\n'
 
-    
+            self.lines.append(res_line)
+
+        self.lines.append(f'{"|": ^5}')
+        self.lines.append(f'{"Y": ^5}')
+
     def print(self):
         print('\n\n')
         for line in self.lines:
             print(line)
 
+    def place_ship(self, ship_size):
+        """
+        Я решила передавать корабли не в конструктор, а создавать их отдельно.
+        Во время игры я смотрю на поле и выбираю, в какую клетку надо поставить корабль.
+        Следовательно, создавать корабль надо в классе "Поле"
+
+        :param ship_size:
+        :return:
+        """
+        # 0. нарисовать текущее состояние поля
+
+
+        # 1. попросить ввести координаты
+
+        while True:
+            self.print()
+            input_coords = input(f"Введите координаты корабля размера {ship_size} в формате х1 у1 x2 y2: ")
+
+            try:
+                coordinates = self.__check_coordinates__(input_coords, ship_size)
+
+                # 2. координаты павильные, создаём корабль
+
+            except ValueError:
+                print("Введены не числа. Введите координаты в четырех чисел чисел через пробел.")
+                continue
+            except IndexError:
+                print("Введено не четыре числа. Введите четыре числа.")
+                continue
+            except self.BadShipPositionError as error:
+                print(str(error))
+                continue
+            else:
+                self.ships.append(Ship(coordinates))
+
+
+
+
+
+
+
+    def __check_coordinates__(self, input_coordinates, ship_size):
+        """
+
+        :param input_coordinates: строка, где через пробел записаны цифры координат
+        :return: разные исключения
+        """
+        res_coordinates = []
+
+        print('Введены значения:')
+        print(input_coordinates.split())
+        print(len(input_coordinates.split()))
+
+        # 0. проверка числа введённых аргументов
+        if len(input_coordinates.split()) != 4:
+            raise self.BadShipPositionError(f'Неверное количество аргументов. Нужно 4, а введено {len(input_coordinates.split())}.')
+
+
+        # 1. проверка, что все координаты - цифры
+        try:
+            res_coordinates.append(int(input_coordinates.split()[0]))
+            res_coordinates.append(int(input_coordinates.split()[1]))
+            res_coordinates.append(int(input_coordinates.split()[2]))
+            res_coordinates.append(int(input_coordinates.split()[3]))
+        except ValueError:
+            raise
+        except IndexError:
+            raise
+
+
+        # 2. Проверка, что не вылезаем за границы поля
+        if any(coord for coord in res_coordinates if coord >= self.field_size or coord < 0):
+            raise self.BadShipPositionError(f'Координаты выходят за пределы поля. Максимум {self.field_size - 1}, минимум 0')
+
+
+
+
+        # координаты (цифры) введены корректно с точки зрения типов данных. сейчас будем проверять с точки зрения игры.
+        start = (res_coordinates[0], res_coordinates[1])
+        end = (res_coordinates[2], res_coordinates[3])
+        ship_horizontal = start[0] == end[0]
+        ship_vertical = start[1] == end[1]
+
+        # 3. Проверка, что корабль прямой
+        if not ship_horizontal and not ship_vertical:
+            raise self.BadShipPositionError('Корабль должен располагаться по вертикали или по горизонтали. Введён зигзаг.')
+
+
+
+        if ship_horizontal:
+            ship_cells_coords = set([(res_coordinates[0], res_coordinates[1] + i) for i in range(end[1] - start[1] + 1)])
+        else:
+            ship_cells_coords = set([(res_coordinates[0] + i, res_coordinates[1]) for i in range(end[0] - start[0] + 1)])
+
+        # 4. Проверка, что координаты соответствуют длине корабля
+        print(len(ship_cells_coords))
+        if len(ship_cells_coords) != ship_size:
+            raise self.BadShipPositionError(f'Координаты корабля не совпадают с его размерами. Нужная длина {ship_size}, '
+                                            f'а по введённым координатам получается {len(ship_cells_coords)}')
+
+        # todo проверка что координата не занята или не находится слишком близко к другому кораблю
+        ship_test_0 = Ship([(4, 3), (5, 3), (6, 3)])
+        # ship_test_0.set_coords([(4, 3), (5, 3), (6, 3)])
+
+        ship_test_1 = Ship([(0, 0), (1, 0)])
+        # ship_test_1.set_coords([(0, 0), (1, 0)])
+
+        ship_test_2 = Ship([(1, 4), (1, 5)])
+        ship_test_2.set_coords([(1, 4), (1, 5)])
+
+        self.ships.append(ship_test_0)
+        self.ships.append(ship_test_1)
+        self.ships.append(ship_test_2)
+
+
+        around_cells = set()
+        occupied_cells = set()
+
+        for other_ship in self.ships:
+            around_cells = around_cells.union(other_ship.get_around_coords())
+            occupied_cells = occupied_cells.union(other_ship.get_coords())
+
+        # 5. смотрим, не попадаем ли на корабль
+        if ship_cells_coords.intersection(occupied_cells):
+            raise self.BadShipPositionError('На указанных координатах расположен другой корабль.')
+
+        # 6. смотрим, не попадаем ли на окружность корабля
+        if ship_cells_coords.intersection(around_cells):
+            raise self.BadShipPositionError('Нельзя ставить корабли впритирку.')
+
+        x = 1
+        return ship_cells_coords
+
+
+
+
 
 class Ship:
-    size = None
-    coords = None
-    cells = []
 
-    def __init__(self, size):
+    """
+    Координата Х, Координата У, Поражённость
+    {
+        (0, 0): False,
+        (0, 1): False,
+        (0, 2): True,
+    }
+    """
+    def __init__(self, coords):
+        self.cells = {}
+        for cell_coord in coords:
+            self.cells[cell_coord] = False
 
 
+    def set_coords(self, coords):
+        self.cells = {}
+        for cell_coord in coords:
+            self.cells[cell_coord] = False
+
+
+    def get_size(self):
+        return len(self.cells)
+
+    def get_coords(self):
+        return set(self.cells.keys())
+
+    def get_cells(self):
+        return self.cells
+
+
+
+
+    def get_around_coords(self):
+        res = set()
+        for cell_coords in self.get_coords():
+            # 1. x - 1
+            res.add((cell_coords[0] - 1, cell_coords[1] - 1))
+            res.add((cell_coords[0] - 1, cell_coords[1]))
+            res.add((cell_coords[0] - 1, cell_coords[1] + 1))
+
+            # 2. x
+            res.add((cell_coords[0], cell_coords[1] - 1))
+            res.add((cell_coords[0], cell_coords[1] + 1))
+
+            # 3. x + 1
+            res.add((cell_coords[0] + 1, cell_coords[1] - 1))
+            res.add((cell_coords[0] + 1, cell_coords[1]))
+            res.add((cell_coords[0] + 1, cell_coords[1] + 1))
+
+        x = 1
+
+        return res.difference(self.get_coords())
 
 
 
@@ -223,50 +430,12 @@ def no_space_left():
     return True
 
 
-def run_game(player_0, player_1):
-    print('Игра начинается!')
-
-    # 1.1 выбирается случайный игрок
-    
-    
-
-    # --- 1.1
-    if random.random() > 0.5:
-        playing_player = player_0
-        waiting_player = player_1
-    else:
-        playing_player = player_1
-        waiting_player = player_0
-
-
-    field = Field()
-
-
-    # --- 1.2
-    # TODO реализовать Field.setShips(player)
-
-
-
-    # 2.1 начинаются ходы
-
-    # 3. если достигнуто условие окончания игры - выход
-
-
-
-    print('Игра окончена!')
-    return ''
-
-
-
 def __main__():
     print('Это игра "Морской бой!"')
 
     game = BattleshipGame()
 
-    game.run_game()
-
-
-    won_name = run_game(player_0, player_1)
+    game.play()
 
     print(f'Играли игроки: ')
     print(f'{player_0.name} vs {player_1.name}')
@@ -278,4 +447,3 @@ def __main__():
 
 
 __main__()
-
