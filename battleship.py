@@ -27,7 +27,6 @@
 # 4. Сделать условия победы
 """
 import random
-import itertools
 
 
 class BattleshipGame:
@@ -52,7 +51,11 @@ class BattleshipGame:
 
         while not self.game_end:
 
-            self.__player_move__(player, waiting.get_field())
+            shot = self.__player_move__(player, waiting.get_field())
+
+            self.__register_shot__(player, waiting, shot)
+
+            self.__check_game_end__(waiting.get_field())
 
             if self.__check_game_end__(waiting.get_field()):
                 self.winner = player
@@ -63,6 +66,13 @@ class BattleshipGame:
             waiting = temp
 
         print(f'Игра окончена! Победил игрок {self.winner}')
+
+
+    def __register_shot__(self, playing, waiting, shot):
+        # 1. ждущий ставит себе попадание, возвращает результат (мимо\ранил\потопил)
+        waiting.get
+        # 2. играющий ставит результат попадания себе в поле
+    
 
     def __fill_fields__(self):
         # 1.2 отрисовывается поле
@@ -77,10 +87,12 @@ class BattleshipGame:
         print(f'Игрок {player.name} расставляет корабли.')
 
         if self.field_size == 8:
-            ships_available = [3, 2, 2, 1, 1, 1]
+            ships_available = [2, 1]
 
             for ship_size in ships_available:
+                x = 1
                 player.get_field().place_ship(ship_size)
+
 
     def __init_players__(self):
         self.players.append(Player('Паша'))
@@ -107,7 +119,8 @@ class BattleshipGame:
 
         self.field_size = 8
         for player in self.players:
-            player.set_field(Field(self.field_size, player))
+            new_field = Field(self.field_size, player)
+            player.set_field(new_field)
         return
 
         print('Создание поля. Выберите размер:\n',
@@ -128,12 +141,28 @@ class BattleshipGame:
                       '\t1: 8х8, 1х 3-кл; 2 шт. 2-кл; 3 шт. 1кл.\n',
                       '\t2: 10х10, 1х 4-кл; 2 шт. 3-кл; 3 шт. 2кл., 4 шт. 1-кл.\n')
 
-    def __player_move__(self, player_id, enemy_field):
-        print(f'Ход игрока {self.players[player_id].name}')
+    def __player_move__(self, player, enemy_field):
+        x = 1
+        print(f'Ход игрока {player.name}')
 
-        # todo ввод и регистрация выстрелов игрока player
-
-        self.__check_game_end__(enemy_field)
+        while True:
+            shot = input('Введите координаты выстрела')
+            enemy_field.print()
+            
+            try:
+                enemy_field.__check_shot_coordinates_correct__(shot)
+            except ValueError:
+                print("Введены не числа. Введите координаты в двух чисел чисел через пробел.")
+                continue
+            except IndexError:
+                print("Введено не два числа. Введите два числа.")
+                continue
+            except self.BadShipPositionError as error:
+                print(str(error))
+                continue
+            else:
+                return shot
+        
 
     def __check_game_end__(self, field):
         """
@@ -172,10 +201,6 @@ class Player:
 
 
 class Field:
-    field_size = 8
-    lines = None
-    ships = []
-    player = None
 
     class BadShipPositionError(Exception):
         def __init__(self, *args):
@@ -191,38 +216,76 @@ class Field:
                 return 'BadShipPositionError has been raised'
 
     def __init__(self, field_size, player):
+        
+        self.ships = []
         self.field_size = field_size
         self.player = player
 
+        self.field = []
+
         self.__create_field__()
 
-    def __create_field__(self):
-        self.lines = []
-        header = f'{"O": ^5}'
+
+    def __create_header__(self):
+        self.field_header = []
+
         for i in range(self.field_size):
-            header += f'{i: ^5}'
-        header += f'--{"X": ^3}'
+            self.field_header.append(f'{i: ^5}')
 
-        self.lines.append(header + '\n')
 
-        for x, line in enumerate(range(self.field_size)):
-            res_line = f'{x: ^5}'
+    def __create_field__(self):
+        """
+        Поле вида 
+        [
+            [ячейка0, ячейка1, ...],
+            [...],
+            ...
+        ]
+        """
+        self.__create_header__()
 
+        for i in range(self.field_size):
+            line = []
             for cell in range(self.field_size):
                 # print(f'Строка {line}: ячейка {cell}')
-                res_line += f'{"-": ^5}'
-            # print(f'Сформирована стркоа {res_line}')
-            res_line += '\n'
+                line.append(f'{"-": ^5}')
+            # print(f'Сформирована строка {res_line}')
+            self.field.append(line)
 
-            self.lines.append(res_line)
 
-        self.lines.append(f'{"|": ^5}')
-        self.lines.append(f'{"Y": ^5}')
+
+    def __add_ships_to_field__(self):
+        x = 1
+
+    
+    def __insert_ship_to_field__(self, ship_coords):
+        for cell_coords in ship_coords:
+            x = cell_coords[0]
+            y = cell_coords[1]
+            z = 1
+            self.field[y][x] = f'{"|||||": ^5}'
+            z = 1
+            """
+            Ship([(4, 3), (5, 3), (6, 3)])
+            Ship([(0, 0), (1, 0)])
+            Ship([(1, 4), (1, 5)])
+            """
+
 
     def print(self):
-        print('\n\n')
-        for line in self.lines:
-            print(line)
+        print('\n--- Моё поле ---\n')
+        start_of_coordinates = f'{"O": ^5}'
+
+        for ship in self.ships:
+            coords = ship.get_coords()
+            self.__insert_ship_to_field__(ship.get_coords())
+
+        
+        print(start_of_coordinates + ''.join(self.field_header))
+        for i in range(self.field_size):
+            line_to_print = self.field_header[i] + ''.join(self.field[i])
+            print(line_to_print)
+
 
     def place_ship(self, ship_size):
         """
@@ -258,9 +321,34 @@ class Field:
                 continue
             else:
                 self.ships.append(Ship(coordinates))
+                break
 
 
 
+    def __check_shot_coordinates_correct__(self, shot_input):
+        """
+        :return: status: 0 - потопил 1 - ранил 2 - мимо
+        """
+        print(f'Введены значения выстрела: {shot_input.split()} (длина {len(shot_input.split())})')
+
+        # проверка числа введенных аргументов
+        
+        if len(shot_input.split()) != 2:
+            raise self.BadShipPositionError(f'Неверное количество аргументов. Нужно 2, а введено {len(shot_input.split())}.')
+
+
+        # 1. проверка что координаты - цифры
+        try:
+            int(shot_input.split()[0])
+            int(shot_input.split()[1])
+        except ValueError:
+            raise
+        except IndexError:
+            raise
+
+        # 2. проверка, что не вылезаем за пределы поля
+        if any(coord for coord in shot_input if coord >= self.field_size or coord < 0):
+            raise self.BadShipPositionError(f'Координаты выходят за пределы поля. Максимум {self.field_size - 1}, минимум 0')
 
 
 
@@ -273,9 +361,7 @@ class Field:
         """
         res_coordinates = []
 
-        print('Введены значения:')
-        print(input_coordinates.split())
-        print(len(input_coordinates.split()))
+        print(f'Введены значения: {input_coordinates.split()} (длина {len(input_coordinates.split())})')
 
         # 0. проверка числа введённых аргументов
         if len(input_coordinates.split()) != 4:
@@ -325,18 +411,15 @@ class Field:
                                             f'а по введённым координатам получается {len(ship_cells_coords)}')
 
         # todo проверка что координата не занята или не находится слишком близко к другому кораблю
-        ship_test_0 = Ship([(4, 3), (5, 3), (6, 3)])
-        # ship_test_0.set_coords([(4, 3), (5, 3), (6, 3)])
+        # ship_test_0 = Ship([(4, 3), (5, 3), (6, 3)])
 
-        ship_test_1 = Ship([(0, 0), (1, 0)])
-        # ship_test_1.set_coords([(0, 0), (1, 0)])
+        # ship_test_1 = Ship([(0, 0), (1, 0)])
 
-        ship_test_2 = Ship([(1, 4), (1, 5)])
-        ship_test_2.set_coords([(1, 4), (1, 5)])
+        # ship_test_2 = Ship([(1, 4), (1, 5)])
 
-        self.ships.append(ship_test_0)
-        self.ships.append(ship_test_1)
-        self.ships.append(ship_test_2)
+        # self.ships.append(ship_test_0)
+        # self.ships.append(ship_test_1)
+        # self.ships.append(ship_test_2)
 
 
         around_cells = set()
@@ -358,9 +441,6 @@ class Field:
         return ship_cells_coords
 
 
-
-
-
 class Ship:
 
     """
@@ -372,9 +452,22 @@ class Ship:
     }
     """
     def __init__(self, coords):
+        # 0 - потоплен
+        # 1 - ранен
+        # 2 - цел
+        self.status = None
         self.cells = {}
         for cell_coord in coords:
             self.cells[cell_coord] = False
+
+
+    def __refresh_status__(self):
+        if all(self.get_cell_statuses()):
+            self.status = 0
+        elif any(self.get_cell_statuses()):
+            self.status = 1
+        else:
+            self.status = 2
 
 
     def set_coords(self, coords):
@@ -388,6 +481,9 @@ class Ship:
 
     def get_coords(self):
         return set(self.cells.keys())
+
+    def get_cell_statuses(self):
+        return self.cells.values()
 
     def get_cells(self):
         return self.cells
@@ -418,32 +514,11 @@ class Ship:
 
 
 
-def is_player_won():
-    """
-
-    :return:
-    """
-    return False
-
-
-def no_space_left():
-    return True
-
-
 def __main__():
     print('Это игра "Морской бой!"')
 
     game = BattleshipGame()
 
     game.play()
-
-    print(f'Играли игроки: ')
-    print(f'{player_0.name} vs {player_1.name}')
-
-    if won_name:
-        print(f'Победил игрок {won_name}!')
-    else:
-        print('Ничья!')
-
 
 __main__()
