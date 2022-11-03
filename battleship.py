@@ -15,19 +15,9 @@
 Побеждает тот, кто быстрее всех разгромит корабли противника.
 
 
-
-
-
-# 1. Сделать общий алгоритм игры
-
-# 2. Сделать класс поля
-
-# 3. Сделать класс корабля
-
-# 4. Сделать условия победы
 """
-import os
 import random
+import time
 
 
 class BattleshipGame:
@@ -37,69 +27,73 @@ class BattleshipGame:
         self.winner = None
         self.game_end = False
 
-        self.ships_available = [2]
-        self.field_size = 8
+        self.ships_available = None
+        self.field_size = None
 
         self.__init_players__()
 
         self.__init_fields__()
 
     def play(self):
-
         self.__fill_fields__()
 
         player = self.players[0]
         waiting = self.players[1]
 
         while not self.game_end:
-
             shot = self.__player_move__(player, waiting.get_field())
 
-            self.__register_shot__(player, waiting, shot)
-
-            self.__check_game_end__(waiting.get_field())
+            shot_res = self.__register_shot__(player, waiting, shot)
 
             if self.__check_game_end__(waiting.get_field()):
                 self.winner = player
+                print(f'Игра окончена! Победил игрок {player.name}')
+                print('Расклад кораблей:')
+                player.get_field().print_both_fields()
                 break
 
-            temp = player
-            player = waiting
-            waiting = temp
+            if shot_res == 2:   # Ход переходит только если играющий промахнулся
+                temp = player
+                player = waiting
+                waiting = temp
 
-        print(f'Игра окончена! Победил игрок {self.winner}')
-
+            time.sleep(1)
 
     def __register_shot__(self, player, waiting, shot):
-        # 0. ждущий ставит себе попадание, возвращает результат (мимо\ранил\потопил)
-        x = 1
         shot_res, ship_coords = waiting.get_field().register_enemy_shot(shot)
-        # 1. все ставит результат попадания себе в поле
-        x = 1
+        if shot_res == 0:
+            print(f'\n{"Потопил!": ^50}')
+        elif shot_res == 1:
+            print(f'\n{"Ранил!": ^50}')
+        else:
+            print(f'\n{"Мимо!": ^50}')
         player.get_field().register_shot(shot_res, shot, ship_coords)
-        x = 1
+
+        return shot_res
 
 
+    def __generate_random_shot__(self, field):
+        cells = []
+        for y, line in enumerate(field):
+            for x, cell in enumerate(line):
+                if Field.miss_symbol not in cell:
+                    cells.append([x, y])
+                else:
+                    continue
+
+        shot_cell = random.randint(0, len(cells))
+        return cells[shot_cell]
 
     def __fill_fields__(self):
         for player in self.players:
             self.__fill_field__(player)
 
-
     def __fill_field__(self, player):
         print(f'Игрок {player.name} расставляет корабли.')
-
         for ship_id, ship in player.get_field().get_ships().items():
             player.get_field().place_ship(ship_id, ship)
 
-
-
     def __init_players__(self):
-        self.players.append(Player('Паша'))
-        self.players.append(Player('Лена'))
-
-        return
-
         player_0 = None
         player_1 = None
 
@@ -113,42 +107,61 @@ class BattleshipGame:
             name_1 = input('Введите имя второго игрока (или ничего, если играем с компьютером): ')
             player_1 = Player(name_1) if name_1 else Player('', True)
 
-        return player_0, player_1
+        self.players.append(player_0)
+        self.players.append(player_1)
 
     def __init_fields__(self):
+        while True:
+            print(f'Выберите вариант игры. На данный момент доступно два размера поля:')
+            var_1 = '\t1: 5х5, корабли: \n\t\t1 2-клеточный;\n\t\t2 1-клеточных.\n'
+            var_2 = '\t1: 8х8, корабли: \n\t\t1 3-клеточный;\n\t\t2 2-клеточных;\n\t\t3 1клеточных.\n'
+            var_3 = '\t2: 10х10, корабли:\n\t\t1 4-клеточный;\n\t\t2 3-клеточных;\n\t\t3 2клеточных;\n\t\t4 1-клеточных.\n'
+            field_size_input = input(var_1 + var_2 + var_3)
+
+            if not isinstance(int(field_size_input), int):
+                print('Введите число!')
+                continue
+            elif field_size_input == '1':
+                self.field_size = 5
+                self.ships_available = [2, 1, 1]
+                break
+            elif field_size_input == '2':
+                self.field_size = 8
+                self.ships_available = [3, 2, 2, 1, 1, 1]
+                break
+            elif field_size_input == '3':
+                self.field_size = 10
+                self.ships_available = [4, 3, 3, 2, 2, 2, 1, 1, 1, 1]
+                break
+            else:
+                print('Выберите один из вариантов!')
+                continue
 
         for player in self.players:
             new_field = Field(self.field_size, player, self.ships_available)
             player.set_field(new_field)
 
-        x = 1
-        return
-
-        print('Создание поля. Выберите размер:\n',
-              '\t1: 8х8, 1х 3-кл; 2 шт. 2-кл; 3 шт. 1кл.\n',
-              '\t2: 10х10, 1х 4-кл; 2 шт. 3-кл; 3 шт. 2кл., 4 шт. 1-кл.\n')
-        field_size_input = ''
-
-        while not self.field_size:
-
-            field_size_input = input()
-
-            if field_size_input == '1':
-                self.field_size = 8
-            elif field_size_input == '2':
-                self.field_size = 10
-            else:
-                print('Выберите один из двух вариантов!\n',
-                      '\t1: 8х8, 1х 3-кл; 2 шт. 2-кл; 3 шт. 1кл.\n',
-                      '\t2: 10х10, 1х 4-кл; 2 шт. 3-кл; 3 шт. 2кл., 4 шт. 1-кл.\n')
-
     def __player_move__(self, player, enemy_field):
-        print('---------------------------\n')
-        print(f'Ход игрока {player.name}')
+        help_messages = [f'{Field.ship_symbol_y} - корабль', f'{Field.ship_wounded_symbol_y} - раненый', f'{Field.ship_killed_symbol_y} - потопленный']
+        print('\n')
+        print(f'{"-" * 40} Ход игрока {player.name} {"-" * 40}')
+        for help_msg in help_messages:
+            print(help_msg)
+        print('\n')
 
         while True:
             player.get_field().print_both_fields()
-            shot = input('Введите координаты выстрела по вражескому полю (справа)')
+
+            while True:
+                rand_coords = self.__generate_random_shot__(player.get_field().enemy_field)
+                if not player.get_field().__check_cell_hit__(rand_coords):
+                    break
+
+            if player.ai:
+                shot = f'{rand_coords[0]} {rand_coords[1]}'
+                print(f'Компьютер стреляет по {rand_coords}')
+            else:
+                shot = input(f'{player.name}, введите координаты выстрела по вражескому полю (справа)')
 
             try:
                 enemy_field.__check_shot_coordinates_correct__(shot)
@@ -164,16 +177,17 @@ class BattleshipGame:
             else:
                 return [int(coordinate) for coordinate in shot.split()]
 
-
     def __check_game_end__(self, field):
         """
 
         :param player: кого проверяем (!но поле надо смотреть другого игрока!)
         :return:
         """
-        # todo Условия окончания игры: 1. все корабли какого-то игрока побиты
-        return False
-
+        # Если остался хотя бы один корабль, статус которого не "потоплен" - игра не окончена
+        for ship in field.ships.values():
+            if ship.status != 0:
+                return False
+        return True
 
 
 class Player:
@@ -203,20 +217,27 @@ class Player:
 
 
 class Field:
+    # ship_symbol_x = '\u2593' * 5  # ▓
+    # ship_symbol_y = '\u2593' * 3
 
-    ship_symbol_x = '\u2593' * 5  # ▓
-    ship_symbol_y = '\u2593' * 3
+    ship_symbol_x = '|' * 5
+    ship_symbol_y = '|' * 3
 
-    ship_wounded_symbol_x = '\u2592' * 5  # ▒
-    ship_wounded_symbol_y = '\u2592' * 3
+    # ship_wounded_symbol_x = '\u2592' * 5  # ▒
+    # ship_wounded_symbol_y = '\u2592' * 3
 
-    ship_killed_symbol_x = '\u2591' * 5   # ░
-    ship_killed_symbol_y = '\u2591' * 3
+    ship_wounded_symbol_x = '+' * 5
+    ship_wounded_symbol_y = '+' * 3
+
+    # ship_killed_symbol_x = '\u2591' * 5  # ░
+    # ship_killed_symbol_y = '\u2591' * 3
+
+    ship_killed_symbol_x = '*' * 5
+    ship_killed_symbol_y = '*' * 3
 
     empty_cell_symbol = '-'
     start_of_coordinates_symbol = '\u25e4'  # ◤
     miss_symbol = 'X'
-
 
     class BadShipPositionError(Exception):
         def __init__(self, *args):
@@ -234,7 +255,7 @@ class Field:
     def __init__(self, field_size, player, ships_available):
 
         self.ships = {ship_id: Ship(ship_size) for ship_id, ship_size in enumerate(ships_available)}
-        self.ships_by_coordinates = {}  # { (1,1): ship_id в self.ships, (1,2): 1, (3,3): 2, (3,4): 2 }
+        self.ships_by_coordinates = {}
         self.field_size = field_size
         self.player = player
 
@@ -243,20 +264,14 @@ class Field:
 
         self.__create_field__()
 
-
     def set_symbol_to_field_cell(self, coords, symbol):
-        x = 1
         self.field[coords[1]][coords[0]] = symbol
-        x = 1
-
 
     def set_symbol_to_enemy_field_cell(self, coords, symbol):
         self.enemy_field[coords[1][coords[0]]] = symbol
 
-
     def get_field_size(self):
         return self.field_size
-
 
     def get_ship_id_by_coords(self, coords):
         try:
@@ -264,16 +279,21 @@ class Field:
         except KeyError:
             return None
 
-
     def get_ship_by_id(self, ship_id):
         return self.ships[ship_id]
-
 
     def __create_header__(self):
         self.field_header = []
 
         for i in range(self.field_size):
             self.field_header.append(f'{i: ^5}')
+
+
+    def __check_cell_hit__(self, coords):
+        if self.miss_symbol not in self.enemy_field[coords[1]][coords[0]]:
+            return False
+        else:
+            return True
 
 
     def __create_field__(self):
@@ -295,30 +315,28 @@ class Field:
                 line.append(f'{self.empty_cell_symbol: ^5}')
             lines.append(line)
 
-
         for i in range(self.field_size):
             enemy_line = []
             for cell in range(self.field_size):
                 enemy_line.append(f'{self.empty_cell_symbol: ^5}')
             enemy_lines.append(enemy_line)
 
-
         self.field = lines
         self.enemy_field = enemy_lines
 
-
     def __insert_ship_to_field__(self, ship_coords):
         # узнать, по горизонтали корабль или по вертикали
+        if len(ship_coords) == 1:
+            self.set_symbol_to_field_cell(*ship_coords, f'{self.ship_symbol_x: ^5}')
+            return
+
         if ship_coords[0][0] == ship_coords[1][0]:
             symbol = self.ship_symbol_y
         else:
             symbol = self.ship_symbol_x
 
         for cell_coords in ship_coords:
-            x = 1
             self.set_symbol_to_field_cell(cell_coords, f'{symbol: ^5}')
-            x = 1
-            # self.field[y][x] = f'{symbol: ^5}'
 
     @staticmethod
     def print_field(field):
@@ -327,52 +345,35 @@ class Field:
             print(line)
         print('\n')
 
-
     def print_both_fields(self):
         my_field = self.get_field()
         enemy_field = self.get_enemy_field()
 
-        my_header = f'{"Моё поле": ^60}'
-        enemy_header = f'{"Вражеское поле": ^60}'
-        field_width = len(my_field[0])
+        field_width = len(my_field[0])  # (60 - 10) / 2
+        my_header = ' ' * int((field_width - 10) / 2) + ' Моё поле ' + ' ' * int((field_width - 10) / 2)
+        enemy_header = ' ' * int((field_width - 16) / 2) + ' Вражеское поле ' + ' ' * int((field_width - 16) / 2)
 
-        try:
-            terminal_size = os.get_terminal_size()
-        except OSError as error:
-            terminal_size = 120  # примерно чуть больше половины
-            my_header = f'{"Моё поле": ^50}'
-            enemy_header = f'{"Вражеское поле": ^50}'
-            pass
 
-        if self.get_field_size() == 8:
+        space_between_fields_size = 50
 
-            my_header = f'{"Моё поле": ^45}'
-            enemy_header = f'{"Вражеское поле": ^45}'
 
-        space_between_fields_size = terminal_size - field_width * 2
-
-        lines = []
 
         common_header = f'{my_header}{" " * space_between_fields_size}{enemy_header}'
         print(common_header)
-        x = 1
         for my_line, enemy_line in zip(my_field, enemy_field):
             line = f'{my_line}{" " * space_between_fields_size}{enemy_line}'
             print(line)
 
         print('\n')
 
-
     def get_enemy_field(self):
         lines = []
         start_of_coordinates = f'{self.start_of_coordinates_symbol: ^5}'
         lines.append(start_of_coordinates + ''.join(self.field_header))
         for i, line in enumerate(self.enemy_field):
-
             line = self.field_header[i] + ''.join(line)
             lines.append(line)
         return lines
-
 
     def get_field(self):
         lines = []
@@ -382,19 +383,6 @@ class Field:
             line_to_print = self.field_header[i] + ''.join(self.field[i])
             lines.append(line_to_print)
         return lines
-
-
-    def get_shot_res(self, shot_coords):
-        """
-
-        :param shot_coords:
-        :return: 0 - потопил 1 - ранил 2 - мимо
-        """
-        x = 1
-        ship_id = self.get_ship_id_by_coords(tuple(shot_coords))
-        x = 1
-        status = self.get_ship_by_id(ship_id).get_ship_status()
-        x = 1
 
 
     def register_enemy_shot(self, shot_coords):
@@ -434,7 +422,6 @@ class Field:
             self.field[y][x] = f'{self.miss_symbol: ^5}'
             return 2, None
 
-
     def register_shot(self, shot_result, shot_coords, ship_coords):
         """
 
@@ -443,21 +430,20 @@ class Field:
         :param ship_coords: - координаты потопленного корабля, если это случилось
         :return:
         """
-        x = 1
         if shot_result == 0:
-            x = 1
-            if ship_coords[0][0] != ship_coords[1][0]:
-                for coord in ship_coords:
-                    self.enemy_field[coord[1]][coord[0]] = f'{self.ship_killed_symbol_x: ^5}'
+            if len(ship_coords) != 1:
+                if ship_coords[0][0] != ship_coords[1][0]:
+                    for coord in ship_coords:
+                        self.enemy_field[coord[1]][coord[0]] = f'{self.ship_killed_symbol_x: ^5}'
+                else:
+                    for coord in ship_coords:
+                        self.enemy_field[coord[1]][coord[0]] = f'{self.ship_killed_symbol_y: ^5}'
             else:
-                for coord in ship_coords:
-                    self.enemy_field[coord[1]][coord[0]] = f'{self.ship_killed_symbol_y: ^5}'
+                self.enemy_field[ship_coords[0][1]][ship_coords[0][0]] = f'{self.ship_killed_symbol_x: ^5}'
         elif shot_result == 1:
-            x = 1
             self.enemy_field[shot_coords[1]][shot_coords[0]] = f'{self.ship_wounded_symbol_x: ^5}'
         else:
             self.enemy_field[shot_coords[1]][shot_coords[0]] = f'{self.miss_symbol: ^5}'
-
 
     def place_ship(self, ship_id, ship):
         """
@@ -470,12 +456,16 @@ class Field:
         """
         # 0. нарисовать текущее состояние поля
 
-
         # 1. попросить ввести координаты
 
         while True:
             self.print_field(self.get_field())
-            input_coords = input(f"Введите координаты корабля размера {ship.get_size()} в формате х1 у1 x2 y2: ")
+            if ship.get_size() == 1:
+                msg = f"{self.player.name}, введите координаты корабля размера {ship.get_size()} в формате х y: "
+            else:
+                msg = f"{self.player.name}, введите координаты корабля размера {ship.get_size()} в формате х1 у1 x2 y2: "
+
+            input_coords = input(msg)
 
             try:
                 coordinates = self.__check_coordinates__(input_coords, ship.get_size())
@@ -483,35 +473,35 @@ class Field:
                 # 2. координаты павильные, создаём корабль
 
             except ValueError:
-                print("Введены не числа. Введите координаты в четырех чисел чисел через пробел.")
+                print("Введены не числа. Введите координаты числами через пробел.")
                 continue
             except IndexError:
-                print("Введено не четыре числа. Введите четыре числа.")
+                if ship.get_size() == 1:
+                    print(f"Введено неверное число координат ({len(input_coords)}). Нужно 2.")
+                else:
+                    print(f"Введено неверное число координат({len(input_coords)}). Нужно 4.")
                 continue
             except self.BadShipPositionError as error:
                 print(str(error))
                 continue
             else:
-                x = 1
                 ship.set_coords(coordinates)
-                x = 1
                 self.__insert_ship_to_field__(coordinates)
                 for coordinate in coordinates:
                     self.ships_by_coordinates[coordinate] = ship_id
                 break
 
-
     def __check_shot_coordinates_correct__(self, shot_input):
         """
         :return: status: 0 - потопил 1 - ранил 2 - мимо
         """
-        print(f'Введены значения выстрела: {shot_input.split()} (длина {len(shot_input.split())})')
+        # print(f'Введены значения выстрела: {shot_input.split()} (длина {len(shot_input.split())})')
 
         # проверка числа введенных аргументов
 
         if len(shot_input.split()) != 2:
-            raise self.BadShipPositionError(f'Неверное количество аргументов. Нужно 2, а введено {len(shot_input.split())}.')
-
+            raise self.BadShipPositionError(
+                f'Неверное количество аргументов. Нужно 2, а введено {len(shot_input.split())}.')
 
         # 1. проверка что координаты - цифры
         try:
@@ -523,10 +513,13 @@ class Field:
             raise
 
         # 2. проверка, что не вылезаем за пределы поля
-        x = 1
         if any(coord for coord in shot_input.split() if int(coord) >= self.field_size or int(coord) < 0):
-            raise self.BadShipPositionError(f'Координаты выходят за пределы поля. Максимум {self.field_size - 1}, минимум 0')
+            raise self.BadShipPositionError(
+                f'ОШИБКА! Координаты выходят за пределы поля. Максимум {self.field_size - 1}, минимум 0')
 
+        # 3. проверка, что в это поле ещё не стреляли
+        if self.miss_symbol in self.field[int(shot_input.split()[1])][int(shot_input.split()[0])]:
+            raise self.BadShipPositionError(f'ОШИБКА! По данным координатам уже стреляли! Введите другие координаты. {self.hit_fields}')
 
     def __check_coordinates__(self, input_coordinates, ship_size):
         """
@@ -536,65 +529,61 @@ class Field:
         """
         res_coordinates = []
 
-        print(f'Введены значения: {input_coordinates.split()} (длина {len(input_coordinates.split())})')
+        # print(f'Введены значения: {input_coordinates.split()} (длина {len(input_coordinates.split())})')
 
         # 0. проверка числа введённых аргументов
-        if len(input_coordinates.split()) != 4:
-            raise self.BadShipPositionError(f'Неверное количество аргументов. Нужно 4, а введено {len(input_coordinates.split())}.')
-
+        if ship_size != 1:
+            if len(input_coordinates.split()) != 4:
+                raise self.BadShipPositionError(
+                    f'ОШИБКА! Неверное количество аргументов. Нужно 4, а введено {len(input_coordinates.split())}.')
+        else:
+            if len(input_coordinates.split()) != 2:
+                raise self.BadShipPositionError(f'ОШИБКА! Неверное количество аргументов. Нужно 2, а введено {len(input_coordinates.split())}.')
 
         # 1. проверка, что все координаты - цифры
         try:
-            res_coordinates.append(int(input_coordinates.split()[0]))
-            res_coordinates.append(int(input_coordinates.split()[1]))
-            res_coordinates.append(int(input_coordinates.split()[2]))
-            res_coordinates.append(int(input_coordinates.split()[3]))
+            if ship_size == 1:
+                res_coordinates.append(int(input_coordinates.split()[0]))
+                res_coordinates.append(int(input_coordinates.split()[1]))
+            else:
+                res_coordinates.append(int(input_coordinates.split()[0]))
+                res_coordinates.append(int(input_coordinates.split()[1]))
+                res_coordinates.append(int(input_coordinates.split()[2]))
+                res_coordinates.append(int(input_coordinates.split()[3]))
         except ValueError:
             raise
         except IndexError:
             raise
 
-
         # 2. Проверка, что не вылезаем за границы поля
         if any(coord for coord in res_coordinates if coord >= self.field_size or coord < 0):
-            raise self.BadShipPositionError(f'Координаты выходят за пределы поля. Максимум {self.field_size - 1}, минимум 0')
-
-
-
+            raise self.BadShipPositionError(
+                f'ОШИБКА! Координаты выходят за пределы поля. Максимум {self.field_size - 1}, минимум 0')
 
         # координаты (цифры) введены корректно с точки зрения типов данных. сейчас будем проверять с точки зрения игры.
-        start = (res_coordinates[0], res_coordinates[1])
-        end = (res_coordinates[2], res_coordinates[3])
-        ship_horizontal = start[0] == end[0]
-        ship_vertical = start[1] == end[1]
+        if ship_size != 1:
+            start = (res_coordinates[0], res_coordinates[1])
+            end = (res_coordinates[2], res_coordinates[3])
+            ship_horizontal = start[0] == end[0]
+            ship_vertical = start[1] == end[1]
 
-        # 3. Проверка, что корабль прямой
-        if not ship_horizontal and not ship_vertical:
-            raise self.BadShipPositionError('Корабль должен располагаться по вертикали или по горизонтали. Введён зигзаг.')
+            # 3. Проверка, что корабль прямой
+            if not ship_horizontal and not ship_vertical:
+                raise self.BadShipPositionError(
+                    'ОШИБКА! Корабль должен располагаться по вертикали или по горизонтали. Введён зигзаг.')
 
-
-
-        if ship_horizontal:
-            ship_cells_coords = set([(res_coordinates[0], res_coordinates[1] + i) for i in range(end[1] - start[1] + 1)])
+            if ship_horizontal:
+                ship_cells_coords = set([(res_coordinates[0], res_coordinates[1] + i) for i in range(end[1] - start[1] + 1)])
+            else:
+                ship_cells_coords = set([(res_coordinates[0] + i, res_coordinates[1]) for i in range(end[0] - start[0] + 1)])
         else:
-            ship_cells_coords = set([(res_coordinates[0] + i, res_coordinates[1]) for i in range(end[0] - start[0] + 1)])
+            ship_cells_coords = {(res_coordinates[0], res_coordinates[1])}  # x = {...} - множество
 
         # 4. Проверка, что координаты соответствуют длине корабля
         if len(ship_cells_coords) != ship_size:
-            raise self.BadShipPositionError(f'Координаты корабля не совпадают с его размерами. Нужная длина {ship_size}, '
-                                            f'а по введённым координатам получается {len(ship_cells_coords)}')
-
-        # todo проверка что координата не занята или не находится слишком близко к другому кораблю
-        # ship_test_0 = Ship([(4, 3), (5, 3), (6, 3)])
-
-        # ship_test_1 = Ship([(0, 0), (1, 0)])
-
-        # ship_test_2 = Ship([(1, 4), (1, 5)])
-
-        # self.ships.append(ship_test_0)
-        # self.ships.append(ship_test_1)
-        # self.ships.append(ship_test_2)
-
+            raise self.BadShipPositionError(
+                f'ОШИБКА! Координаты корабля не совпадают с его размерами. Нужная длина {ship_size}, '
+                f'а по введённым координатам получается {len(ship_cells_coords)}')
 
         around_cells = set()
         occupied_cells = set()
@@ -605,26 +594,22 @@ class Field:
 
         # 5. смотрим, не попадаем ли на корабль
         if ship_cells_coords.intersection(occupied_cells):
-            raise self.BadShipPositionError('На указанных координатах расположен другой корабль.')
+            raise self.BadShipPositionError('ОШИБКА! На указанных координатах расположен другой корабль.')
 
         # 6. смотрим, не попадаем ли на окружность корабля
         if ship_cells_coords.intersection(around_cells):
-            raise self.BadShipPositionError('Нельзя ставить корабли впритирку.')
+            raise self.BadShipPositionError('ОШИБКА! Нельзя ставить корабли впритирку.')
 
-        x = 1
         return list(ship_cells_coords)
-
 
     def get_ship(self, ship_id):
         return self.ships[ship_id]
-
 
     def get_ships(self):
         return self.ships
 
 
 class Ship:
-
     """
     Координата Х, Координата У, Поражённость
     {
@@ -633,6 +618,7 @@ class Ship:
         (0, 2): True,
     }
     """
+
     def __init__(self, size):
         self.size = size
 
@@ -648,16 +634,13 @@ class Ship:
         self.direction = 0
 
 
-    def __refresh_status__(self):
-        if all(self.get_cell_statuses()):
-            self.status = 0
-        elif any(self.get_cell_statuses()):
-            self.status = 1
-        else:
-            self.status = 2
-
     def set_coords(self, coords):
         self.cells = {}
+
+        if len(coords) == 1:
+            self.cells[coords[0]] = False
+            return
+
         x1 = coords[0][0]
         x2 = coords[1][0]
 
@@ -700,8 +683,6 @@ class Ship:
             res.add((cell_coords[0] + 1, cell_coords[1]))
             res.add((cell_coords[0] + 1, cell_coords[1] + 1))
 
-        x = 1
-
         return res.difference(self.get_coords())
 
     def get_ship_status(self):
@@ -719,7 +700,6 @@ class Ship:
         return self.status
 
 
-
 def __main__():
     print('Это игра "Морской бой!"')
 
@@ -728,5 +708,6 @@ def __main__():
     game.play()
 
 
-__main__()
 
+
+__main__()
