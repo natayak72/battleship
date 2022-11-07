@@ -17,6 +17,20 @@
 
 """
 import BattleshipGame
+from datetime import datetime
+import time
+
+
+class GameTimer:
+    def __init__(self):
+        pass
+
+    def __enter__(self):
+        self.start = datetime.utcnow()
+        return None
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        print(f'Времени прошло: {(datetime.utcnow() - self.start).total_seconds()}')
 
 
 def main():
@@ -24,7 +38,8 @@ def main():
 
     game = BattleshipGame.BattleshipGame()
 
-    game.play()
+    with GameTimer():
+        game.play()
 
 
 if __name__ == '__main__':
